@@ -16,36 +16,37 @@ import java.util.Map;
  * Created by Arbuzov Ivan.
  */
 public class DataSetHolder {
-    private static final Map<Species, DataSet> species2dataset = new HashMap<>();
+  private static final Map<Species, DataSet> species2dataset = new HashMap<>();
 
-    private DataSetHolder() {}
+  private DataSetHolder() {
+  }
 
-    public static void init(Connection connection) throws SQLException {
-        GQModuleDAO dao = new GQModuleDAO(connection);
+  public static void init(Connection connection) throws SQLException {
+    GQModuleDAO dao = new GQModuleDAO(connection);
 
-        List<Module> modules = dao.getAllModules();
+    List<Module> modules = dao.getAllModules();
 
-        final List<Module> hsModules = new ArrayList<>();
-        final List<Module> mmModules = new ArrayList<>();
-        final List<Module> rtModules = new ArrayList<>();
+    final List<Module> hsModules = new ArrayList<>();
+    final List<Module> mmModules = new ArrayList<>();
+    final List<Module> rtModules = new ArrayList<>();
 
-        modules.forEach(module -> {
-            if (module.getSpecies() == Species.MOUSE) {
-                mmModules.add(module);
-            }
-            if (module.getSpecies() == Species.HUMAN) {
-                hsModules.add(module);
-            }
-            if (module.getSpecies() == Species.RAT) {
-                rtModules.add(module);
-            }
-        });
-        species2dataset.put(Species.HUMAN, new DataSet(Species.HUMAN, hsModules));
-        species2dataset.put(Species.MOUSE, new DataSet(Species.MOUSE, mmModules));
-        species2dataset.put(Species.RAT, new DataSet(Species.RAT, rtModules));
-    }
+    modules.forEach(module -> {
+      if (module.getSpecies() == Species.MOUSE) {
+        mmModules.add(module);
+      }
+      if (module.getSpecies() == Species.HUMAN) {
+        hsModules.add(module);
+      }
+      if (module.getSpecies() == Species.RAT) {
+        rtModules.add(module);
+      }
+    });
+    species2dataset.put(Species.HUMAN, new DataSet(Species.HUMAN, hsModules));
+    species2dataset.put(Species.MOUSE, new DataSet(Species.MOUSE, mmModules));
+    species2dataset.put(Species.RAT, new DataSet(Species.RAT, rtModules));
+  }
 
-    public static DataSet getDataSet(Species species) {
-        return species2dataset.get(species);
-    }
+  public static DataSet getDataSet(Species species) {
+    return species2dataset.get(species);
+  }
 }
