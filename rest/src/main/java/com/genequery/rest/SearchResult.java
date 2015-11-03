@@ -61,7 +61,7 @@ public class SearchResult implements Comparable<SearchResult> {
     return logPvalue > other.logPvalue ? 1 : -1;
   }
 
-  public String getDataInStringLine() {
+  public String getDataToStringLine() {
     return String.format(
         "%s\t%s\t%d\t%.2f\t%.2f\t%d\t%d",
         getGse(), getGpl(), getModuleNumber(), getLogPvalue(), getLogEmpiricalPvalue(), getIntersectionSize(),
@@ -71,6 +71,6 @@ public class SearchResult implements Comparable<SearchResult> {
 
   @Override
   public String toString() {
-    return getDataInStringLine();
+    return getDataToStringLine();
   }
 }

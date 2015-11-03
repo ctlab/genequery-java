@@ -5,7 +5,7 @@ package com.genequery.rest.endpoints;
  */
 
 import com.genequery.commons.models.Species;
-import com.genequery.commons.utils.Utils;
+import com.genequery.commons.utils.StringUtils;
 import com.genequery.rest.DataSetHolder;
 import com.genequery.rest.FisherSearcher;
 import com.genequery.rest.SearchResult;
@@ -62,8 +62,8 @@ public class FisherSearcherEndPoint {
           ServerProperties.maxEmpiricalPvalue()
       );
       Collections.sort(results);
-      List<String> best = results.stream().map(SearchResult::getDataInStringLine).collect(Collectors.toList());
-      result = Utils.join(best, "\n");
+      List<String> best = results.stream().map(SearchResult::getDataToStringLine).collect(Collectors.toList());
+      result = StringUtils.join(best, "\n");
       LOG.info("Calculation time: {} ms", System.currentTimeMillis() - startTime);
     } catch (Exception e) {
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(e.getMessage()).build();
