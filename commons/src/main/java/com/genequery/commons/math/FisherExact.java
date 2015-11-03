@@ -29,12 +29,7 @@ public class FisherExact {
 
     /**
      *  Calculate a right p-value for ru.ifmo.gq.console.fisher.Fisher's Exact Test.
-     *
-     *  Sanity tests:
-     *  16, 81, 11, 6892 5.86894299623e-24
-     *  16, 80, 59, 6845 1.90970640055e-15
-     *  16, 76, 3, 6905 1.89727917213e-28
-     *  */
+     */
     public double rightTail(int a, int b, int c, int d) {
         double p_sum = 0.0d;
         double p = calculateHypergeomP(a, b, c, d);
