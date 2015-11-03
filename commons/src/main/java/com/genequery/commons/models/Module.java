@@ -1,5 +1,7 @@
 package com.genequery.commons.models;
 
+import java.util.Arrays;
+
 /**
  * Created by Arbuzov Ivan.
  */
@@ -10,12 +12,12 @@ public class Module {
 
 
   /**
-   * @param fullName full name
-   * @param species  species
-   * @param genes    <i>sorted</i> list of genes
+   * @param name name
+   * @param species species
+   * @param genes <i>sorted</i> list of genes
    */
-  public Module(String fullName, Species species, long[] genes) {
-    this.name = new ModuleName(fullName);
+  public Module(ModuleName name, Species species, long[] genes) {
+    this.name = name;
     this.species = species;
     this.genes = genes;
   }

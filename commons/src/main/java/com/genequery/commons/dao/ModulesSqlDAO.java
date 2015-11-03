@@ -1,6 +1,7 @@
 package com.genequery.commons.dao;
 
 import com.genequery.commons.models.Module;
+import com.genequery.commons.models.ModuleName;
 import com.genequery.commons.models.Species;
 
 import java.sql.Connection;
@@ -34,7 +35,7 @@ public class ModulesSqlDAO implements ModulesDAO {
         long[] resGenes = new long[genes.length];
         // Entrez IDs are supposed to be sorted in descending order
         IntStream.rangeClosed(0, genes.length - 1).forEach(i -> resGenes[genes.length - i - 1] = genes[i]);
-        modules.add(new Module(fullName, species, resGenes));
+        modules.add(new Module(new ModuleName(fullName), species, resGenes));
       }
       return modules;
     }
