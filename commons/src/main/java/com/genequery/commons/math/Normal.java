@@ -15,8 +15,6 @@ public class Normal {
      * Hacked version of Apache's NormalDistribution::cumulativeDistribution function
      * aimed to be more precise on very small log(p-value).
      *
-     * Quick test: cdf(-33.89071337129947, -3.7172, 1.0202) == 1.5176139736e-192
-     *
      * @param logPvalue log(p-value)
      * @param mean mean
      * @param sigma sigma
