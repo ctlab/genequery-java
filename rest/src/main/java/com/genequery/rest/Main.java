@@ -1,5 +1,6 @@
 package com.genequery.rest;
 
+import com.genequery.commons.dao.ModulesSqlDAO;
 import com.genequery.commons.models.Species;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +16,7 @@ import java.sql.SQLException;
 public class Main {
   private static final Logger LOG = LoggerFactory.getLogger(Main.class);
 
-  private static void initData() throws SQLException, ClassNotFoundException {
+  private static void initData() throws Exception {
     Class.forName("org.postgresql.Driver");
     try (Connection connection = DriverManager.getConnection(
         "jdbc:postgresql:" + ServerProperties.dbName(),
@@ -23,7 +24,7 @@ public class Main {
         ServerProperties.dbPassword()
     )) {
       LOG.info("Initializing data...");
-      DataSetHolder.init(connection);
+      DataSetHolder.init(new ModulesSqlDAO(connection));
       LOG.info("Data has been initialized. hs: {}, mm: {}, rt: {} modules.",
           DataSetHolder.getDataSet(Species.HUMAN).size(),
           DataSetHolder.getDataSet(Species.MOUSE).size(),

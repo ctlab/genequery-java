@@ -1,12 +1,10 @@
 package com.genequery.rest;
 
+import com.genequery.commons.dao.ModulesDAO;
 import com.genequery.commons.models.DataSet;
 import com.genequery.commons.models.Module;
 import com.genequery.commons.models.Species;
-import com.genequery.rest.dao.GQModuleDAO;
 
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -21,9 +19,7 @@ public class DataSetHolder {
   private DataSetHolder() {
   }
 
-  public static void init(Connection connection) throws SQLException {
-    GQModuleDAO dao = new GQModuleDAO(connection);
-
+  public static void init(ModulesDAO dao) throws Exception {
     List<Module> modules = dao.getAllModules();
 
     final List<Module> hsModules = new ArrayList<>();
