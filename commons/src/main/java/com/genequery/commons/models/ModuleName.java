@@ -7,6 +7,8 @@ public class ModuleName {
   private final String gse;
   private final String gpl;
   private final int moduleNumber;
+  private final String fullName;
+  private final String gseGpl;
 
   /**
    * @param wholeName module ID in the form of GSE[num]_GPL[num]#MODULE_NUMBER[module],
@@ -19,6 +21,8 @@ public class ModuleName {
     String[] gseAndGpl = gseGplAndNumber[0].split("_");
     gse = gseAndGpl[0];
     gpl = gseAndGpl[1];
+    gseGpl = gse + "_" + gpl;
+    fullName = gseGpl + "#" + moduleNumber;
   }
 
   @Override
@@ -27,7 +31,7 @@ public class ModuleName {
   }
 
   public String full() {
-    return gse + "_" + gpl + "#" + moduleNumber;
+    return fullName;
   }
 
   public String getGse() {
@@ -43,7 +47,7 @@ public class ModuleName {
   }
 
   public String getGseGpl() {
-    return getGse() + "_" + getGpl();
+    return gseGpl;
   }
 }
 

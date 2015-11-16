@@ -1,6 +1,7 @@
-package com.genequery.rest;
+package com.genequery.commons.search;
 
 
+import com.genequery.commons.math.FisherTable;
 import com.genequery.commons.models.Module;
 
 /**
@@ -10,10 +11,17 @@ public class SearchResult implements Comparable<SearchResult> {
   private final String gse;
   private final String gpl;
   private final int moduleNumber;
-  private final double logPvalue;
-  private final double logEmpiricalPvalue;
+  private double pvalue;
+  private double logPvalue;
+  private double empiricalPvalue;
+  private double logEmpiricalPvalue;
   private final int intersectionSize;
   private final int moduleSize;
+  private final FisherTable fisherTable;
+
+  public FisherTable getFisherTable() {
+    return fisherTable;
+  }
 
   public String getGse() {
     return gse;
@@ -31,6 +39,10 @@ public class SearchResult implements Comparable<SearchResult> {
     return logPvalue;
   }
 
+  public double getEmpiricalPvalue() {
+    return empiricalPvalue;
+  }
+
   public double getLogEmpiricalPvalue() {
     return logEmpiricalPvalue;
   }
@@ -43,14 +55,29 @@ public class SearchResult implements Comparable<SearchResult> {
     return moduleSize;
   }
 
-  public SearchResult(Module module, double logPvalue, double logEmpiricalPvalue, int intersectionSize) {
+  public SearchResult(Module module, double pvalue, int intersectionSize, FisherTable fisherTable) {
     this.gse = module.getName().getGse();
     this.gpl = module.getName().getGpl();
     this.moduleNumber = module.getName().getModuleNumber();
-    this.logPvalue = logPvalue;
-    this.logEmpiricalPvalue = logEmpiricalPvalue;
+    setPvalue(pvalue);
     this.moduleSize = module.getGenes().length;
     this.intersectionSize = intersectionSize;
+    this.fisherTable = fisherTable;
+  }
+
+  public SearchResult(Module module, double pvalue, double empiricalPvalue, int intersectionSize, FisherTable fisherTable) {
+    this(module, pvalue, intersectionSize, fisherTable);
+    setEmpiricalPvalue(empiricalPvalue);
+  }
+
+  public void setEmpiricalPvalue(double empiricalPvalue) {
+    this.empiricalPvalue = empiricalPvalue;
+    this.logEmpiricalPvalue = empiricalPvalue != 0 ? Math.log10(empiricalPvalue) : Double.NEGATIVE_INFINITY;
+  }
+
+  public void setPvalue(double pvalue) {
+    this.pvalue = pvalue;
+    this.logPvalue = pvalue != 0 ? Math.log10(pvalue) : Double.NEGATIVE_INFINITY;
   }
 
   @Override
@@ -64,7 +91,10 @@ public class SearchResult implements Comparable<SearchResult> {
   public String getDataToStringLine() {
     return String.format(
         "%s\t%s\t%d\t%.2f\t%.2f\t%d\t%d",
-        getGse(), getGpl(), getModuleNumber(), getLogPvalue(), getLogEmpiricalPvalue(), getIntersectionSize(),
+        getGse(), getGpl(), getModuleNumber(),
+        getLogPvalue(),
+        getLogEmpiricalPvalue(),
+        getIntersectionSize(),
         getModuleSize()
     );
   }

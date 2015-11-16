@@ -1,51 +1,55 @@
-package com.genequery.rest;
+package com.genequery.commons.search;
 
-import com.genequery.commons.math.FisherExact;
+import com.genequery.commons.math.FisherExactTest;
+import com.genequery.commons.math.FisherTable;
 import com.genequery.commons.math.Normal;
 import com.genequery.commons.models.DataSet;
 import com.genequery.commons.models.Module;
 import com.genequery.commons.models.Species;
 import gnu.trove.map.hash.TObjectIntHashMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Created by Arbuzov Ivan.
  */
 public class FisherSearcher {
 
-  private static final Logger LOG = LoggerFactory.getLogger(FisherSearcher.class);
-
   /**
-   * Quick test:
-   * GSE_GPL#MODULE   INTERSECTION_SIZE   a b c d     p-val   log(p-val)  empirical-p-val     log(empirical-p-val)
-   * GSE46356_GPL6246#4	39 665 2 5294   1.28613521237e-34 -33.8907133713 1.51761397339e-192 -191.818838683
+   * TODO
+   * @param dataSet
+   * @param query
+   * @param empPvalueThreshold
+   * @return
    */
   public static List<SearchResult> search(DataSet dataSet, long[] query, double empPvalueThreshold) {
+    List<SearchResult> result = searchPvalue(dataSet, Arrays.copyOf(query, query.length));
+    return result.stream()
+        .map(searchResult -> {
+          searchResult.setEmpiricalPvalue(
+              calculateEmpiricalPvalue(dataSet.getSpecies(), query.length, searchResult.getLogPvalue())
+          );
+          return searchResult;
+        })
+        .filter(searchResult -> searchResult.getEmpiricalPvalue() <= empPvalueThreshold)
+        .collect(Collectors.toList());
+  }
+
+  /**
+   * TODO
+   * @param dataSet
+   * @param query
+   * @return
+   */
+  public static List<SearchResult> searchPvalue(DataSet dataSet, long[] query) {
     Arrays.sort(query);
     Collection<Module> modules = dataSet.getModules();
-
     final TObjectIntHashMap<String> overlaps = new TObjectIntHashMap<>(modules.size());
     final TObjectIntHashMap<String> overlapsWithGSE = new TObjectIntHashMap<>();
 
-    modules.forEach(
-        module -> {
-          int intersectionLength = module.intersectionSize(query);
-          if (intersectionLength == 0) return;
+    populateOverlaps(modules, query, overlaps, overlapsWithGSE);
 
-          overlaps.put(module.getName().full(), intersectionLength);
-
-          String gseName = module.getName().getGseGpl();
-          overlapsWithGSE.adjustOrPutValue(gseName, intersectionLength, intersectionLength);
-        }
-    );
-
-    FisherExact fisherExact = new FisherExact();
     final List<SearchResult> result = new ArrayList<>(overlaps.size());
     modules.forEach(module -> {
       int seriesOverlap = overlapsWithGSE.get(module.getName().getGseGpl());
@@ -56,17 +60,26 @@ public class FisherSearcher {
 
       if (a == 0) return;
 
-      double pvalue = fisherExact.rightTail(a, b, c, d);
-      double logPvalue = pvalue != 0 ? Math.log10(pvalue) : Double.NEGATIVE_INFINITY;
-      double empiricalPvalue = calculateEmpiricalPvalue(dataSet.getSpecies(), query.length, logPvalue);
+      FisherTable table = new FisherTable(a, b, c, d);
+      double pvalue = FisherExactTest.rightTail(table);
 
-      if (empiricalPvalue > empPvalueThreshold) return;
-
-      double logEmpiricalPvalue = empiricalPvalue != 0 ? Math.log10(empiricalPvalue) : Double.NEGATIVE_INFINITY;
-
-      result.add(new SearchResult(module, logPvalue, logEmpiricalPvalue, a));
+      result.add(new SearchResult(module, pvalue, a, table));
     });
     return result;
+  }
+
+  private static void populateOverlaps(Collection<Module> modules,
+                                       long[] sortedQuery,
+                                       TObjectIntHashMap<String> overlaps,
+                                       TObjectIntHashMap<String> overlapsWithGSE) {
+    modules.forEach(
+        module -> {
+          int intersectionLength = module.intersectionSize(sortedQuery);
+          if (intersectionLength == 0) return;
+          overlaps.put(module.getName().full(), intersectionLength);
+          overlapsWithGSE.adjustOrPutValue(module.getName().getGseGpl(), intersectionLength, intersectionLength);
+        }
+    );
   }
 
   private static double calculateEmpiricalPvalue(Species species, int moduleSize, double logPvalue) {

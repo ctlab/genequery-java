@@ -1,6 +1,7 @@
 package com.genequery.commons.utils;
 
 import java.util.*;
+import java.util.stream.IntStream;
 
 /**
  * Created by Arbuzov Ivan.
@@ -18,7 +19,7 @@ public class StringUtils {
     return sb.toString();
   }
 
-  public static String match(String template, Object... args) {
+  public static String fmt(String template, Object... args) {
     if (template == null) throw new IllegalArgumentException("string template is null");
     if (args == null) throw new IllegalArgumentException("args is null");
 
@@ -42,8 +43,11 @@ public class StringUtils {
     return sb.toString();
   }
 
-  public static void main(String[] args) {
-    System.out.println(match("{}Hel{}lo{}", 1, 2, 4));
+  public static long[] parseEntrezGenes(String line, String separator) {
+    String[] strGenes = line.split(separator);
+    long[] resGenes = new long[strGenes.length];
+    IntStream.range(0, strGenes.length).forEach(i -> resGenes[i] = Long.parseLong(strGenes[i]));
+    return resGenes;
   }
 
 }

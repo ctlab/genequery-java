@@ -1,5 +1,7 @@
 package com.genequery.commons.math;
 
+import org.jetbrains.annotations.NotNull;
+
 /**
  * ru.ifmo.gq.console.fisher.Fisher exact test (left tail).
  * <p>
@@ -7,30 +9,31 @@ package com.genequery.commons.math;
  * <p>
  * Created by Arbuzov Ivan.
  */
-public class FisherExact {
-
-  /**
-   * Pre-calculated log factorial value.
-   */
-  private final double[] logFactorial;
+public class FisherExactTest {
 
   /**
    * Genes count supposed to be involved in a GSE.
    */
-  public static final int OVERESTIMATED_GENE_WORLD_SIZE = 7000;
+  public static final int OVERESTIMATED_GENE_WORLD_SIZE = Integer.parseInt(System.getProperty("gene.world.size", "7000"));
 
-  public FisherExact() {
-    logFactorial = new double[OVERESTIMATED_GENE_WORLD_SIZE + 1];
+  /**
+   * Pre-calculated log factorial value.
+   */
+  private static final double[] logFactorial = new double[OVERESTIMATED_GENE_WORLD_SIZE + 1];
+
+  static {
     logFactorial[0] = 0.0;
     for (int i = 1; i <= OVERESTIMATED_GENE_WORLD_SIZE; i++) {
       logFactorial[i] = logFactorial[i - 1] + Math.log(i);
     }
   }
 
+  private FisherExactTest() {}
+
   /**
    * Calculate a right p-value for ru.ifmo.gq.console.fisher.Fisher's Exact Test.
    */
-  public double rightTail(int a, int b, int c, int d) {
+  public static double rightTail(int a, int b, int c, int d) {
     double p_sum = 0.0d;
     double p = calculateHypergeomP(a, b, c, d);
     while (c >= 0 && b >= 0) {
@@ -45,7 +48,14 @@ public class FisherExact {
     return p_sum;
   }
 
-  private double calculateHypergeomP(int a, int b, int c, int d) {
+  /**
+   * Calculate a right p-value for ru.ifmo.gq.console.fisher.Fisher's Exact Test.
+   */
+  public static double rightTail(@NotNull FisherTable fisherTable) {
+    return rightTail(fisherTable.a, fisherTable.b, fisherTable.c, fisherTable.d);
+  }
+
+  private static double calculateHypergeomP(int a, int b, int c, int d) {
     return Math.exp(logFactorial[a + b] +
         logFactorial[c + d] +
         logFactorial[a + c] +
