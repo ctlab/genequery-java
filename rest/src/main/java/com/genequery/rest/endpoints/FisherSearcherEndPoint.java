@@ -5,20 +5,16 @@ package com.genequery.rest.endpoints;
  */
 
 import com.genequery.commons.models.Species;
-import com.genequery.commons.utils.StringUtils;
 import com.genequery.rest.DataSetHolder;
 import com.genequery.commons.search.FisherSearcher;
 import com.genequery.commons.search.SearchResult;
 import com.genequery.rest.ServerProperties;
+import com.genequery.rest.xmlmodels.SearchResultXML;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
+import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -30,44 +26,46 @@ public class FisherSearcherEndPoint {
 
   @GET
   @Path("search_sorted")
-  @Produces(MediaType.TEXT_PLAIN)
-  public Response test(
+  @Produces(MediaType.APPLICATION_JSON)
+  public List<SearchResultXML> process(
       @QueryParam("species") String species,
       @QueryParam("genes") String genes) {
-    // TODO normal response error messages
+
     LOG.info("Request accepted: {}, {}", species, genes);
+
     Species sp;
     long[] query;
+
+    if (species == null || "".equals(species)) throw new BadRequestException("Species isn't passed");
+    if (genes == null || "".equals(genes)) throw new BadRequestException("Genes aren't passed");
+
     try {
-      if (species == null) throw new IllegalArgumentException("Species isn't passed");
-      if (genes == null) throw new IllegalArgumentException("Genes ain't passed");
       sp = Species.fromString(species);
-      String[] stringGenes = genes.split(" ");
-      query = new long[stringGenes.length];
-      for (int i = 0; i < stringGenes.length; i++) {
+    } catch (IllegalArgumentException e) {
+      throw new BadRequestException("Incorrect species is specified: " + species);
+    }
+
+    String[] stringGenes = genes.split(" ");
+    query = new long[stringGenes.length];
+    for (int i = 0; i < stringGenes.length; i++) {
+      try {
         query[i] = Long.parseLong(stringGenes[i]);
+      } catch (NumberFormatException e) {
+        throw new BadRequestException("Can't parse entrez ID: " + stringGenes[i]);
       }
-    } catch (Exception e) {
-      LOG.error("Illegal params.", e);
-      return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
     }
 
-    String result;
-    try {
-      long startTime = System.currentTimeMillis();
+    List<SearchResult> results;
+    long startTime = System.currentTimeMillis();
 
-      List<SearchResult> results = FisherSearcher.search(
-          DataSetHolder.getDataSet(sp),
-          query,
-          ServerProperties.maxEmpiricalPvalue()
-      );
-      Collections.sort(results);
-      List<String> best = results.stream().map(SearchResult::getDataToStringLine).collect(Collectors.toList());
-      result = StringUtils.join(best, "\n");
-      LOG.info("Calculation time: {} ms", System.currentTimeMillis() - startTime);
-    } catch (Exception e) {
-      return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(e.getMessage()).build();
-    }
-    return Response.status(Response.Status.OK).entity(result).build();
+    results = FisherSearcher.search(
+        DataSetHolder.getDataSet(sp),
+        query,
+        ServerProperties.maxEmpiricalPvalue()
+    );
+    Collections.sort(results);
+
+    LOG.info("Calculation time: {} ms, {} results was found.", System.currentTimeMillis() - startTime, results.size());
+    return results.stream().map(SearchResultXML::createFromSearchResult).collect(Collectors.toList());
   }
 }

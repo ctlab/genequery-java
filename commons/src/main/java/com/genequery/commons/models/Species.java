@@ -24,6 +24,6 @@ public enum Species {
         }
       }
     }
-    throw new IllegalArgumentException("No enum for: " + text);
+    throw new IllegalArgumentException("No species enum for: " + text);
   }
 }

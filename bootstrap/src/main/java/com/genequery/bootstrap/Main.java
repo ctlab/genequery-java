@@ -2,7 +2,6 @@ package com.genequery.bootstrap;
 
 import com.genequery.commons.dao.ModulesDAO;
 import com.genequery.commons.dao.ModulesGmtDAO;
-import com.genequery.commons.math.FisherExactTest;
 import com.genequery.commons.models.DataSet;
 import com.genequery.commons.models.Species;
 import com.genequery.commons.search.FisherSearcher;
@@ -26,15 +25,14 @@ public class Main {
 
   private static Random random = new Random();
 
-  // TODO make input argument
-  private static int[] REQUEST_LENGTHS = {
+  private static int[] DEFAULT_REQUEST_LENGTHS = {
       5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
       20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100,
       110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
       225, 250, 275, 300, 325, 350, 375, 400,
       450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000,
       1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000,
-      3250, 3500, 3750, 4000, 4250, 4500, 5000,
+      3250, 3500, 3750, 4000, 4250, 4500, 4750, 5000,
   };
 
 
@@ -72,10 +70,25 @@ public class Main {
     String gmtFilename = checkNotNull(BootstrapProperties.getGmtModulesFilename(), "Path to GMT is null");
     String entrezIdsFilename = checkNotNull(BootstrapProperties.getEntrezIdsFilename(), "Path to entrezIDs is null");
     Species species = BootstrapProperties.getSpecies();
-    String outputFilename = BootstrapProperties.getOutputFilename();
+    String outputFilename = BootstrapProperties.getOutputPath();
+    String partitionFilename = BootstrapProperties.getRequestLengthsPartitionPath();
 
-    int samplesPerQuerySize = BootstrapProperties.getSamplesPerQuerySize();
-    int threadCount = BootstrapProperties.getThreadCount();
+    int[] partition;
+    if (partitionFilename != null) {
+      partition = Files.lines(Paths.get(partitionFilename)).mapToInt(Integer::parseInt).toArray();
+    } else {
+      System.out.println("Use default request lengths partition.");
+      partition = DEFAULT_REQUEST_LENGTHS;
+    }
+    System.out.println(
+        StringUtils.fmt("Request partition length: {}, {}", partition.length, Arrays.toString(partition))
+    );
+
+
+//    int samplesPerQuerySize = BootstrapProperties.getSamplesPerQuerySize();
+    int samplesPerQuerySize = 1000;
+//    int threadCount = BootstrapProperties.getThreadCount();
+    int threadCount = 6;
 
     System.out.println("Initializing data...");
     ModulesDAO dao = new ModulesGmtDAO(species, gmtFilename);
@@ -92,8 +105,10 @@ public class Main {
 
     try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(outputFilename))) {
       long t = System.currentTimeMillis();
-      for (int requestLength : REQUEST_LENGTHS) {
+      for (int requestLength : partition) {
         System.out.print("Running for " + requestLength + " request length... ");
+        System.out.flush();
+
         try {
           final List<Callable<Double>> callables = new ArrayList<>();
           for (int i = 0; i < samplesPerQuerySize; ++i) {

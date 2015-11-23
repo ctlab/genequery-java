@@ -37,8 +37,10 @@ public class RestServer {
 
     // Tells the Jersey Servlet which REST service/class to load.
     restServletHolder.setInitParameter(
-        "jersey.config.server.provider.classnames", FisherSearcherEndPoint.class.getCanonicalName());
-
+        "jersey.config.server.provider.classnames",
+        FisherSearcherEndPoint.class.getCanonicalName() + ";"
+            + GenericExceptionLogMapper.class.getCanonicalName());
+    restServletHolder.setInitParameter("com.sun.jersey.api.json.POJOMappingFeature", "true");
 
     webServer.start();
     webServer.join();

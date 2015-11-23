@@ -18,6 +18,10 @@ public class FisherTable {
     this.d = d;
   }
 
+  public int[] toArray() {
+    return new int[]{a, b, c, d};
+  }
+
   @Override
   public String toString() {
     return StringUtils.fmt("a={} b={} c={} d={}", a, b, c, d);

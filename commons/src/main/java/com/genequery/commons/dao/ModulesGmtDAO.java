@@ -14,6 +14,17 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
+ * Here GMT (Gene Matrix Transposed) is file format such that each row has the following format:
+ *
+ * <GSE_GPL#moduleNumberIsTheGSE> entrezID_1,entrezID_2,entrezID_3,...
+ *
+ * where first token (gse_gpl#moduleNumberIsTheGSE) is separated from the rest of the line with the tab symbol,
+ * and entrez IDs are comma-separated.
+ *
+ * E.g.:
+ * GSE30678_GPL570#11 100507507,280636,92241,81566,55667,55619,54842,51411,50515,26511,26092,23608,10962,10955
+ *
+ *
  * Created by Arbuzov Ivan.
  */
 public class ModulesGmtDAO implements ModulesDAO {

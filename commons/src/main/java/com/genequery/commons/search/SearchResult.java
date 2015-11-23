@@ -3,13 +3,20 @@ package com.genequery.commons.search;
 
 import com.genequery.commons.math.FisherTable;
 import com.genequery.commons.models.Module;
+import org.jetbrains.annotations.NotNull;
+
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlRootElement;
 
 /**
  * Created by Arbuzov Ivan.
  */
+@XmlRootElement
+@XmlAccessorType(XmlAccessType.NONE)
 public class SearchResult implements Comparable<SearchResult> {
-  private final String gse;
-  private final String gpl;
+  @NotNull private final String gse;
+  @NotNull private final String gpl;
   private final int moduleNumber;
   private double pvalue;
   private double logPvalue;
@@ -17,16 +24,19 @@ public class SearchResult implements Comparable<SearchResult> {
   private double logEmpiricalPvalue;
   private final int intersectionSize;
   private final int moduleSize;
-  private final FisherTable fisherTable;
+  @NotNull private final FisherTable fisherTable;
 
+  @NotNull
   public FisherTable getFisherTable() {
     return fisherTable;
   }
 
+  @NotNull
   public String getGse() {
     return gse;
   }
 
+  @NotNull
   public String getGpl() {
     return gpl;
   }
@@ -55,7 +65,11 @@ public class SearchResult implements Comparable<SearchResult> {
     return moduleSize;
   }
 
-  public SearchResult(Module module, double pvalue, int intersectionSize, FisherTable fisherTable) {
+  public double getPvalue() {
+    return pvalue;
+  }
+
+  public SearchResult(Module module, double pvalue, int intersectionSize, @NotNull FisherTable fisherTable) {
     this.gse = module.getName().getGse();
     this.gpl = module.getName().getGpl();
     this.moduleNumber = module.getName().getModuleNumber();
@@ -63,11 +77,6 @@ public class SearchResult implements Comparable<SearchResult> {
     this.moduleSize = module.getGenes().length;
     this.intersectionSize = intersectionSize;
     this.fisherTable = fisherTable;
-  }
-
-  public SearchResult(Module module, double pvalue, double empiricalPvalue, int intersectionSize, FisherTable fisherTable) {
-    this(module, pvalue, intersectionSize, fisherTable);
-    setEmpiricalPvalue(empiricalPvalue);
   }
 
   public void setEmpiricalPvalue(double empiricalPvalue) {
@@ -81,7 +90,7 @@ public class SearchResult implements Comparable<SearchResult> {
   }
 
   @Override
-  public int compareTo(SearchResult other) {
+  public int compareTo(@NotNull SearchResult other) {
     if (Math.abs(logPvalue - other.logPvalue) < 1e-323) {
       return 0;
     }
@@ -90,9 +99,11 @@ public class SearchResult implements Comparable<SearchResult> {
 
   public String getDataToStringLine() {
     return String.format(
-        "%s\t%s\t%d\t%.2f\t%.2f\t%d\t%d",
+        "%s\t%s\t%d\t%.8e\t%.2f\t%.8e\t%.2f\t%d\t%d",
         getGse(), getGpl(), getModuleNumber(),
+        getPvalue(),
         getLogPvalue(),
+        getEmpiricalPvalue(),
         getLogEmpiricalPvalue(),
         getIntersectionSize(),
         getModuleSize()
