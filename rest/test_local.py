@@ -24,4 +24,4 @@ final_url = 'http://localhost:{}/{}?{}'.format(port, url, urllib.urlencode(param
 print "Open", final_url
 #data = [x.strip().split('\t') for x in urllib2.urlopen(final_url).readlines()]
 data = json.load(urllib2.urlopen(final_url))
-print data
+print json.dumps(data[:30], indent=2)

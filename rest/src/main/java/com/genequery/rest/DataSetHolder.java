@@ -19,24 +19,28 @@ public class DataSetHolder {
   private DataSetHolder() {
   }
 
-  public static void init(ModulesDAO dao) throws Exception {
-    List<Module> modules = dao.getAllModules();
+  public static void init(ModulesDAO ... daos) {
 
     final List<Module> hsModules = new ArrayList<>();
     final List<Module> mmModules = new ArrayList<>();
     final List<Module> rtModules = new ArrayList<>();
 
-    modules.forEach(module -> {
-      if (module.getSpecies() == Species.MOUSE) {
-        mmModules.add(module);
-      }
-      if (module.getSpecies() == Species.HUMAN) {
-        hsModules.add(module);
-      }
-      if (module.getSpecies() == Species.RAT) {
-        rtModules.add(module);
-      }
-    });
+    for (ModulesDAO dao : daos) {
+      List<Module> modules = dao.getAllModules();
+
+      modules.forEach(module -> {
+        if (module.getSpecies() == Species.MOUSE) {
+          mmModules.add(module);
+        }
+        if (module.getSpecies() == Species.HUMAN) {
+          hsModules.add(module);
+        }
+        if (module.getSpecies() == Species.RAT) {
+          rtModules.add(module);
+        }
+      });
+    }
+
     species2dataset.put(Species.HUMAN, new DataSet(Species.HUMAN, hsModules));
     species2dataset.put(Species.MOUSE, new DataSet(Species.MOUSE, mmModules));
     species2dataset.put(Species.RAT, new DataSet(Species.RAT, rtModules));

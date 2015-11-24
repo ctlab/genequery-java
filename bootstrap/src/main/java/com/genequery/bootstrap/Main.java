@@ -85,13 +85,11 @@ public class Main {
     );
 
 
-//    int samplesPerQuerySize = BootstrapProperties.getSamplesPerQuerySize();
-    int samplesPerQuerySize = 1000;
-//    int threadCount = BootstrapProperties.getThreadCount();
-    int threadCount = 6;
+    int samplesPerQuerySize = BootstrapProperties.getSamplesPerQuerySize();
+    int threadCount = BootstrapProperties.getThreadCount();
 
     System.out.println("Initializing data...");
-    ModulesDAO dao = new ModulesGmtDAO(species, gmtFilename);
+    ModulesDAO dao = new ModulesGmtDAO(species, Paths.get(gmtFilename));
     DataSet dataSet = new DataSet(species, dao.getAllModules());
     System.out.println(StringUtils.fmt(
         "Data has been initialized: species={}, modules={}.", species, dataSet.getModules().size()

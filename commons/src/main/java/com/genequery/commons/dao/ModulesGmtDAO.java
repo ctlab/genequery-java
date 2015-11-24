@@ -5,6 +5,7 @@ import com.genequery.commons.models.ModuleName;
 import com.genequery.commons.models.Species;
 import com.genequery.commons.utils.StringUtils;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,12 +30,16 @@ import java.util.stream.Stream;
  */
 public class ModulesGmtDAO implements ModulesDAO {
 
-  private Path path;
-  private Species species;
+  private final Species species;
+  private final List<Module> modules;
 
-  public ModulesGmtDAO(Species species, String path) {
-    this.path = Paths.get(path);
+
+  public ModulesGmtDAO(Species species, Path path) throws IOException {
     this.species = species;
+
+    try (Stream<String> lines = Files.lines(path)) {
+      modules = lines.map(this::buildModuleByGMTLine).collect(Collectors.toList());
+    }
   }
 
   private Module buildModuleByGMTLine(String line) {
@@ -45,9 +50,7 @@ public class ModulesGmtDAO implements ModulesDAO {
   }
 
   @Override
-  public List<Module> getAllModules() throws Exception {
-    try (Stream<String> lines = Files.lines(path)) {
-      return lines.map(this::buildModuleByGMTLine).collect(Collectors.toList());
-    }
+  public List<Module> getAllModules() {
+    return modules;
   }
 }

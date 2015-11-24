@@ -2,4 +2,4 @@
 *dependency-reduced-pom.xml
 */target/*
 *.swp~
-
+*.log

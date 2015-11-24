@@ -27,9 +27,8 @@ public class FisherSearcherTest {
       Thread.currentThread().getContextClassLoader().getResource("").getPath();
 
   @BeforeClass
-  public static void loadData() throws Exception {
-    ModulesDAO dao = new ModulesGmtDAO(
-        Species.MOUSE, resourcePath + "mm_modules.gmt");
+  public static void loadData() throws IOException {
+    ModulesDAO dao = new ModulesGmtDAO(Species.MOUSE, Paths.get(resourcePath , "mm_modules.gmt"));
     mmDataSet = new DataSet(Species.MOUSE, dao.getAllModules());
   }
 
