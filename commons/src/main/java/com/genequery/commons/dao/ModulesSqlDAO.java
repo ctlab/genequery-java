@@ -23,7 +23,7 @@ public class ModulesSqlDAO implements ModulesDAO {
 
   public ModulesSqlDAO(Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement()) {
-      ResultSet rs = statement.executeQuery("SELECT * FROM module_genes");
+      ResultSet rs = statement.executeQuery("SELECT * FROM modules");
       modules = new ArrayList<>();
 
       while (rs.next()) {
