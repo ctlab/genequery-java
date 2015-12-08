@@ -29,7 +29,7 @@ public class ModulesSqlDAO implements ModulesDAO {
       while (rs.next()) {
         Integer[] genes = (Integer[]) rs.getArray("entrez_ids").getArray();
         Species species = Species.fromString(rs.getString("species"));
-        String fullName = rs.getString("module");
+        String fullName = rs.getString("full_name");
         long[] resGenes = new long[genes.length];
         // Entrez IDs are supposed to be sorted in descending order
         IntStream.rangeClosed(0, genes.length - 1).forEach(i -> resGenes[genes.length - i - 1] = genes[i]);
