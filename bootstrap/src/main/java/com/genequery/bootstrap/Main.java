@@ -8,8 +8,10 @@ import com.genequery.commons.search.FisherSearcher;
 import com.genequery.commons.search.SearchResult;
 import com.genequery.commons.utils.StringUtils;
 import org.apache.commons.math3.stat.StatUtils;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.BufferedWriter;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
@@ -66,13 +68,159 @@ public class Main {
 
   public static void main(String[] args) throws Exception {
     System.out.println(StringUtils.fmt("Using properties: {}", BootstrapProperties.asProperties()));
+    if (args.length == 0 || args[0].equals("byquery")) {
+      byQuerySizeBootstrap();
+      return;
+    }
+    byOverallSizeBootstrap();
+  }
 
-    String gmtFilename = checkNotNull(BootstrapProperties.getGmtModulesFilename(), "Path to GMT is null");
-    String entrezIdsFilename = checkNotNull(BootstrapProperties.getEntrezIdsFilename(), "Path to entrezIDs is null");
-    Species species = BootstrapProperties.getSpecies();
+  private static int randInt(int min, int max) {
+    return random.nextInt((max - min) + 1) + min;
+  }
+
+  private static void byOverallSizeBootstrap() throws IOException, InterruptedException {
     String outputFilename = BootstrapProperties.getOutputPath();
-    String partitionFilename = BootstrapProperties.getRequestLengthsPartitionPath();
+    int threadCount = BootstrapProperties.getThreadCount();
+    int overallRequestCount = BootstrapProperties.getOverallRequestCount();
+    int queryLenFrom = BootstrapProperties.getQueryLenFrom();
+    int queryLenTo = BootstrapProperties.getQueryLenTo();
 
+    overallRequestCount = 1000;
+
+    System.out.println("Overall request count: " + overallRequestCount);
+    System.out.println(StringUtils.fmt("Using request length range: from {} to {}.", queryLenFrom, queryLenTo));
+
+    DataSet dataSet = readDataSet();
+    List<Long> entrezIds = getAllEntrezIDs();
+
+    System.out.println("Let's go!");
+
+    final ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+
+    try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(outputFilename))) {
+      long t = System.currentTimeMillis();
+      final List<Callable<Double>> callables = new ArrayList<>();
+      final List<Integer> requestLengths = new ArrayList<>();
+
+      for (int overallRequestIterator = 0; overallRequestIterator < overallRequestCount; ++overallRequestIterator) {
+        requestLengths.add(randInt(queryLenFrom, queryLenTo));
+      }
+
+      Collections.sort(requestLengths);
+
+      callables.addAll(
+        requestLengths
+          .stream()
+          .map(requestLength -> search(requestLength, entrezIds, dataSet))
+          .collect(Collectors.toList())
+      );
+      List<Future<Double>> futures = callables.stream().map(executor::submit).collect(Collectors.toList());
+      for (int i = 0; i < callables.size(); ++i) {
+        System.out.print("\r" + (i + 1) + " done...");
+        Future<Double> f = futures.get(i);
+        int requestLength = requestLengths.get(i);
+        try {
+          double minPvalue = f.get();
+          writer.write(String.format("%d\t%.16f\n", requestLength, minPvalue));
+          writer.flush();
+        } catch (ExecutionException e) {
+          System.err.println("Exception while calculating future.");
+          e.printStackTrace();
+        }
+      }
+      System.out.println();
+      System.out.println(StringUtils.fmt("Done: time={}ms", System.currentTimeMillis() - t));
+    }
+    executor.shutdownNow();
+  }
+
+  private static void byQuerySizeBootstrap() throws IOException {
+    String outputFilename = BootstrapProperties.getOutputPath();
+    boolean withPvalues = BootstrapProperties.getWithPvalues();
+    int[] samplesPerQuerySizes = BootstrapProperties.getSamplesPerQuerySizes();
+    int threadCount = BootstrapProperties.getThreadCount();
+
+    DataSet dataSet = readDataSet();
+    int[] partition = getPartition();
+    List<Long> entrezIds = getAllEntrezIDs();
+
+
+    ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+
+    try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(outputFilename))) {
+      long t = System.currentTimeMillis();
+      for (int requestLength : partition) {
+        for (int samplesPerQuerySize : samplesPerQuerySizes) {
+          System.out.print(
+            StringUtils.fmt("Running for {} request length and {} sample fit...", requestLength, samplesPerQuerySize));
+          System.out.flush();
+
+          try {
+            final List<Callable<Double>> callables = new ArrayList<>();
+            for (int i = 0; i < samplesPerQuerySize; ++i) {
+              callables.add(search(requestLength, entrezIds, dataSet));
+            }
+
+            double[] minLogPvalue = new double[samplesPerQuerySize];
+
+            List<Future<Double>> futures = executor.invokeAll(callables);
+            for (int i = 0; i < futures.size(); ++i) {
+              minLogPvalue[i] = futures.get(i).get();
+            }
+
+            double mean = StatUtils.mean(minLogPvalue);
+            double std = Math.sqrt(StatUtils.variance(minLogPvalue, mean));
+            if (withPvalues) {
+              String strPvalues = Arrays.stream(minLogPvalue)
+                .mapToObj(String::valueOf)
+                .collect(Collectors.joining(","));
+              writer.write(String.format("%d\t%d\t%.16f\t%.16f\t%s\n",
+                requestLength, samplesPerQuerySize, mean, std, strPvalues));
+            } else {
+              writer.write(String.format("%d\t%d\t%.16f\t%.16f\n",
+                requestLength, samplesPerQuerySize, mean, std));
+            }
+            writer.flush();
+
+            System.out.println(StringUtils.fmt("Done: time={}ms mean={} std={}", System.currentTimeMillis() - t, mean, std));
+            t = System.currentTimeMillis();
+          } catch (InterruptedException e) {
+            e.printStackTrace();
+            break;
+          } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Continue.");
+          }
+        }
+      }
+    }
+    executor.shutdownNow();
+  }
+
+  @NotNull
+  private static List<Long> getAllEntrezIDs() throws IOException {
+    String entrezIdsFilename = checkNotNull(BootstrapProperties.getEntrezIdsFilename(), "Path to entrezIDs is null");
+    List<Long> entrezIds = Files.lines(Paths.get(entrezIdsFilename)).map(Long::parseLong).collect(Collectors.toList());
+    System.out.println("EntrezID total count: " + entrezIds.size());
+    return entrezIds;
+  }
+
+  @NotNull
+  private static DataSet readDataSet() throws IOException {
+    System.out.println("Initializing data...");
+    Species species = BootstrapProperties.getSpecies();
+    String gmtFilename = checkNotNull(BootstrapProperties.getGmtModulesFilename(), "Path to GMT is null");
+    ModulesDAO dao = new ModulesGmtDAO(species, Paths.get(gmtFilename));
+    DataSet dataSet = new DataSet(species, dao.getAllModules());
+    System.out.println(StringUtils.fmt(
+        "Data has been initialized: species={}, modules={}.", species, dataSet.getModules().size()
+    ));
+    return dataSet;
+  }
+
+  private static int[] getPartition() throws IOException {
+    String partitionFilename = BootstrapProperties.getRequestLengthsPartitionPath();
     int[] partition;
     if (partitionFilename != null) {
       partition = Files.lines(Paths.get(partitionFilename)).mapToInt(Integer::parseInt).toArray();
@@ -83,60 +231,6 @@ public class Main {
     System.out.println(
         StringUtils.fmt("Request partition length: {}, {}", partition.length, Arrays.toString(partition))
     );
-
-
-    int samplesPerQuerySize = BootstrapProperties.getSamplesPerQuerySize();
-    int threadCount = BootstrapProperties.getThreadCount();
-
-    System.out.println("Initializing data...");
-    ModulesDAO dao = new ModulesGmtDAO(species, Paths.get(gmtFilename));
-    DataSet dataSet = new DataSet(species, dao.getAllModules());
-    System.out.println(StringUtils.fmt(
-        "Data has been initialized: species={}, modules={}.", species, dataSet.getModules().size()
-    ));
-
-    List<Long> entrezIds = Files.lines(Paths.get(entrezIdsFilename)).map(Long::parseLong).collect(Collectors.toList());
-    System.out.println("EntrezID total count: " + entrezIds.size());
-
-
-    ExecutorService executor = Executors.newFixedThreadPool(threadCount);
-
-    try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(outputFilename))) {
-      long t = System.currentTimeMillis();
-      for (int requestLength : partition) {
-        System.out.print("Running for " + requestLength + " request length... ");
-        System.out.flush();
-
-        try {
-          final List<Callable<Double>> callables = new ArrayList<>();
-          for (int i = 0; i < samplesPerQuerySize; ++i) {
-            callables.add(search(requestLength, entrezIds, dataSet));
-          }
-
-          double[] pvalues = new double[samplesPerQuerySize];
-
-          List<Future<Double>> futures = executor.invokeAll(callables);
-          for (int i = 0; i < futures.size(); ++i) {
-            pvalues[i] = futures.get(i).get();
-          }
-
-          double mean = StatUtils.mean(pvalues);
-          double std = Math.sqrt(StatUtils.variance(pvalues, mean));
-          writer.write(String.format("%d\t%.16f\t%.16f\n", requestLength, mean, std));
-          writer.flush();
-
-          System.out.println(StringUtils.fmt("Done: time={}ms mean={} std={}", System.currentTimeMillis() - t, mean, std));
-          t = System.currentTimeMillis();
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-          break;
-        } catch (Exception e) {
-          e.printStackTrace();
-          System.err.println("Continue.");
-        }
-      }
-    }
-    executor.shutdownNow();
-
+    return partition;
   }
 }
