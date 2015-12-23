@@ -31,6 +31,10 @@ public class DataSet {
     return modules.values();
   }
 
+  public Module getModuleByFullName(String fullname) {
+    return modules.get(fullname);
+  }
+
   @Override
   public String toString() {
     return getSpecies() + " [" + getModules().size() + " modules]";

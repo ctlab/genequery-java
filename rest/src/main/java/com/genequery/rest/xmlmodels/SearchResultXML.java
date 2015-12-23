@@ -3,6 +3,7 @@ package com.genequery.rest.xmlmodels;
 import com.genequery.commons.search.SearchResult;
 
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 /**
  * Created by Arbuzov Ivan.
@@ -13,9 +14,15 @@ public class SearchResultXML {
   private String gpl;
   private int moduleNumber;
   private double pvalue;
-  private double logPvalue;
+
+  @XmlJavaTypeAdapter(NullIfMinValueDoubleAdapter.class)
+  private Double logPvalue;
+
   private double empiricalPvalue;
-  private double logEmpiricalPvalue;
+
+  @XmlJavaTypeAdapter(NullIfMinValueDoubleAdapter.class)
+  private Double logEmpiricalPvalue;
+
   private int intersectionSize;
   private int moduleSize;
   private int[] fisherTable;
@@ -54,11 +61,11 @@ public class SearchResultXML {
     this.pvalue = pvalue;
   }
 
-  public double getLogPvalue() {
+  public Double getLogPvalue() {
     return logPvalue;
   }
 
-  public void setLogPvalue(double logPvalue) {
+  public void setLogPvalue(Double logPvalue) {
     this.logPvalue = logPvalue;
   }
 
@@ -70,11 +77,11 @@ public class SearchResultXML {
     this.empiricalPvalue = empiricalPvalue;
   }
 
-  public double getLogEmpiricalPvalue() {
+  public Double getLogEmpiricalPvalue() {
     return logEmpiricalPvalue;
   }
 
-  public void setLogEmpiricalPvalue(double logEmpiricalPvalue) {
+  public void setLogEmpiricalPvalue(Double logEmpiricalPvalue) {
     this.logEmpiricalPvalue = logEmpiricalPvalue;
   }
 

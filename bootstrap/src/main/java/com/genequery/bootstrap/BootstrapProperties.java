@@ -26,6 +26,8 @@ public class BootstrapProperties {
   public static final String OVERALL_REQUEST_COUNT = "overall.request.count";
   public static final String QUERY_LEN_FROM = "query.len.from";
   public static final String QUERY_LEN_TO = "query.len.to";
+  public static final String FREQ_TO_GENE_PATH = "freq.to.gene.path";
+  public static final String STRAT_BOUNDS = "strat.bounds";
 
   public static int getThreadCount() {
     return Integer.parseInt(System.getProperty(THREAD_COUNT, "6"));
@@ -45,6 +47,11 @@ public class BootstrapProperties {
   @Nullable
   public static String getEntrezIdsFilename() {
     return System.getProperty(ENTREZ_IDS_FILENAME);
+  }
+
+  @Nullable
+  public static String getFreqToGenePath() {
+    return System.getProperty(FREQ_TO_GENE_PATH);
   }
 
   @Nullable
@@ -78,6 +85,16 @@ public class BootstrapProperties {
     return Integer.parseInt(System.getProperty(QUERY_LEN_TO, "5000"));
   }
 
+  @Nullable
+  public static int[] getStratBounds() {
+    if (System.getProperty(STRAT_BOUNDS) == null) {
+      return null;
+    }
+    return Arrays.stream(System.getProperty(STRAT_BOUNDS).split(","))
+      .mapToInt(Integer::parseInt)
+      .toArray();
+  }
+
   public static Properties asProperties() {
     Properties p = new Properties();
 
@@ -92,6 +109,8 @@ public class BootstrapProperties {
     p.setProperty(OVERALL_REQUEST_COUNT, String.valueOf(getOverallRequestCount()));
     p.setProperty(QUERY_LEN_FROM, String.valueOf(getQueryLenFrom()));
     p.setProperty(QUERY_LEN_TO, String.valueOf(getQueryLenTo()));
+    p.setProperty(FREQ_TO_GENE_PATH, String.valueOf(getFreqToGenePath()));
+    p.setProperty(STRAT_BOUNDS, Arrays.toString(getStratBounds()));
 
     return p;
   }

@@ -5,15 +5,11 @@ import com.genequery.commons.math.FisherTable;
 import com.genequery.commons.models.Module;
 import org.jetbrains.annotations.NotNull;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlRootElement;
+import java.util.List;
 
 /**
  * Created by Arbuzov Ivan.
  */
-@XmlRootElement
-@XmlAccessorType(XmlAccessType.NONE)
 public class SearchResult implements Comparable<SearchResult> {
   @NotNull private final String gse;
   @NotNull private final String gpl;
@@ -25,6 +21,9 @@ public class SearchResult implements Comparable<SearchResult> {
   private final int intersectionSize;
   private final int moduleSize;
   @NotNull private final FisherTable fisherTable;
+
+  // TODO no need in this field
+  @NotNull private final List<Long> intersection;
 
   @NotNull
   public FisherTable getFisherTable() {
@@ -69,7 +68,11 @@ public class SearchResult implements Comparable<SearchResult> {
     return pvalue;
   }
 
-  public SearchResult(Module module, double pvalue, int intersectionSize, @NotNull FisherTable fisherTable) {
+  public SearchResult(Module module,
+                      double pvalue,
+                      int intersectionSize,
+                      @NotNull FisherTable fisherTable,
+                      @NotNull List<Long> intersection) {
     this.gse = module.getName().getGse();
     this.gpl = module.getName().getGpl();
     this.moduleNumber = module.getName().getModuleNumber();
@@ -77,6 +80,7 @@ public class SearchResult implements Comparable<SearchResult> {
     this.moduleSize = module.getGenes().length;
     this.intersectionSize = intersectionSize;
     this.fisherTable = fisherTable;
+    this.intersection = intersection;
   }
 
   public void setEmpiricalPvalue(double empiricalPvalue) {
@@ -95,6 +99,11 @@ public class SearchResult implements Comparable<SearchResult> {
       return 0;
     }
     return logPvalue > other.logPvalue ? 1 : -1;
+  }
+
+  @NotNull
+  public List<Long> getIntersection() {
+    return intersection;
   }
 
   public String getDataToStringLine() {

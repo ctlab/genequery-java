@@ -1,6 +1,9 @@
 package com.genequery.commons.models;
 
-import java.util.Arrays;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by Arbuzov Ivan.
@@ -34,9 +37,20 @@ public class Module {
     return species;
   }
 
-  public int intersectionSize(long[] other) {
+  @NotNull
+  public List<Long> getIntersection(List<Long> other) {
+    long[] array = new long[other.size()];
+    for (int i = 0; i < other.size(); i++) {
+      array[i] = other.get(i);
+    }
+    return getIntersection(array);
+  }
+
+  @NotNull
+  public List<Long> getIntersection(long[] other) {
     long[] a = genes;
     long[] b = other;
+    List<Long> intersection = new ArrayList<>();
 
     if (a.length > b.length) {
       long[] t = a;
@@ -45,11 +59,10 @@ public class Module {
     }
 
     int ia = 0, ib = 0;
-    int result = 0;
 
     while (ia < a.length && ib < b.length) {
       if (a[ia] == b[ib]) {
-        result++;
+        intersection.add(a[ia]);
         ia++;
         ib++;
       } else if (a[ia] > b[ib]) {
@@ -58,6 +71,6 @@ public class Module {
         ia++;
       }
     }
-    return result;
+    return intersection;
   }
 }

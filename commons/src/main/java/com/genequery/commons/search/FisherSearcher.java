@@ -63,7 +63,7 @@ public class FisherSearcher {
       FisherTable table = new FisherTable(a, b, c, d);
       double pvalue = FisherExactTest.rightTail(table);
 
-      result.add(new SearchResult(module, pvalue, a, table));
+      result.add(new SearchResult(module, pvalue, a, table, module.getIntersection(query)));
     });
     return result;
   }
@@ -74,7 +74,7 @@ public class FisherSearcher {
                                        TObjectIntHashMap<String> overlapsWithGSE) {
     modules.forEach(
         module -> {
-          int intersectionLength = module.intersectionSize(sortedQuery);
+          int intersectionLength = module.getIntersection(sortedQuery).size();
           if (intersectionLength == 0) return;
           overlaps.put(module.getName().full(), intersectionLength);
           overlapsWithGSE.adjustOrPutValue(module.getName().getGseGpl(), intersectionLength, intersectionLength);
