@@ -13,6 +13,7 @@ import org.apache.commons.math3.stat.StatUtils;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -45,7 +46,7 @@ public class BootstrapByRequestLengthCommand extends BaseCommand {
   @Override
   protected void _execute(CommandLine commandLine) throws IOException {
     String outputFilename = getOutFileName(commandLine);
-    boolean withPvalues = commandLine.hasOption("wpv");
+    boolean withPvalues = commandLine.hasOption(BootstrapOptions.WITH_P_VALUES);
     int[] samplesPerQuerySizes = getFits(commandLine);
     int threadCount = getThreadCount(commandLine);
 
@@ -53,72 +54,101 @@ public class BootstrapByRequestLengthCommand extends BaseCommand {
     String pathToData = getPathToData(commandLine);
 
     DataSet dataSet = Utils.readDataSet(species, pathToData);
-    int[] partition = Utils.readPartition(commandLine.getOptionValue("p"));
+    int[] partition = Utils.readPartition(commandLine.getOptionValue(BootstrapOptions.PARTITION));
 
-    int[] freqBounds;
+    int[] freqBounds = null;
+    GeneFrequencyDAO geneFrequencyDAO = null;
     List<Long> entrezIds;
-    if (commandLine.hasOption("b")) {
-      freqBounds = Arrays.stream(commandLine.getOptionValues("b")).mapToInt(Integer::parseInt).toArray();
-      GeneFrequencyDAO geneFrequencyDAO = Utils.readGeneFrequency(species, pathToData);
-      entrezIds = Utils.readEntrezIDsBounded(freqBounds[0], freqBounds[1], geneFrequencyDAO);
-    } else {
-      entrezIds = Utils.readEntrezIDs(species, pathToData);
+    if (commandLine.hasOption(BootstrapOptions.FREQUENCY_BOUNDS)) {
+      freqBounds = Arrays.stream(commandLine.getOptionValues(BootstrapOptions.FREQUENCY_BOUNDS))
+        .mapToInt(Integer::parseInt)
+        .toArray();
+      geneFrequencyDAO = Utils.readGeneFrequency(species, pathToData);
     }
+
+    Path outputPath = Paths.get(outputFilename);
+    System.out.println("Output path " + outputPath);
+    ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+    try (BufferedWriter writer = Files.newBufferedWriter(outputPath)) {
+      if (withPvalues) {
+        writer.write("querySize\tfit\tfreqFrom\tfreqTo\tmean\tstd\tminLogPvalues\n");
+      } else {
+        writer.write("querySize\tfit\tfreqFrom\tfreqTo\tmean\tstd\n");
+      }
+      if (freqBounds == null) {
+        entrezIds = Utils.readEntrezIDs(species, pathToData);
+        runBootstrapInParallel(withPvalues, samplesPerQuerySizes, dataSet, partition, entrezIds, 1, 100000, executor, writer);
+      } else {
+        for (int i = 0; i < freqBounds.length - 1; i++) {
+          int freqFrom = freqBounds[i];
+          int freqTo = freqBounds[i + 1];
+          entrezIds = Utils.readEntrezIDsBounded(freqFrom, freqTo, geneFrequencyDAO);
+          runBootstrapInParallel(withPvalues, samplesPerQuerySizes, dataSet, partition, entrezIds, freqFrom, freqTo, executor, writer);
+        }
+      }
+    } finally {
+      executor.shutdownNow();
+    }
+  }
+
+  private void runBootstrapInParallel(boolean withPvalues,
+                                      int[] samplesPerQuerySizes,
+                                      DataSet dataSet,
+                                      int[] partition,
+                                      List<Long> entrezIds,
+                                      int freqFrom, int freqTo,
+                                      ExecutorService executor,
+                                      BufferedWriter writer) {
     if (entrezIds.isEmpty()) {
       throw new IllegalArgumentException("Result entrez ID list is empty.");
     }
-
-    ExecutorService executor = Executors.newFixedThreadPool(threadCount);
-
-    try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(outputFilename))) {
+    for (int queryLength : partition) {
       long t = System.currentTimeMillis();
-      for (int queryLength : partition) {
-        for (int samplesPerQuerySize : samplesPerQuerySizes) {
-          System.out.print(
-            StringUtils.fmt("Running for {} request length and {} sample fit...", queryLength, samplesPerQuerySize));
-          System.out.flush();
+      for (int samplesPerQuerySize : samplesPerQuerySizes) {
+        System.out.print(
+          StringUtils.fmt("Running: {} query length, {} fit...", queryLength, samplesPerQuerySize));
+        System.out.flush();
 
-          try {
-            final List<Callable<SearchResult>> callables = new ArrayList<>();
-            for (int i = 0; i < samplesPerQuerySize; ++i) {
-              callables.add(search(queryLength, entrezIds, dataSet));
-            }
-
-            double[] statistics = new double[samplesPerQuerySize];
-
-            List<Future<SearchResult>> futures = executor.invokeAll(callables);
-            for (int i = 0; i < futures.size(); ++i) {
-              SearchResult s = futures.get(i).get();
-              statistics[i] = s.getLogPvalue();
-            }
-
-            double mean = StatUtils.mean(statistics);
-            double std = Math.sqrt(StatUtils.variance(statistics, mean));
-            if (withPvalues) {
-              String strPvalues = Arrays.stream(statistics)
-                .mapToObj(String::valueOf)
-                .collect(Collectors.joining(","));
-              writer.write(String.format("%d\t%d\t%.16f\t%.16f\t%s\n",
-                queryLength, samplesPerQuerySize, mean, std, strPvalues));
-            } else {
-              writer.write(String.format("%d\t%d\t%.16f\t%.16f\n",
-                queryLength, samplesPerQuerySize, mean, std));
-            }
-            writer.flush();
-
-            System.out.println(StringUtils.fmt("Done: time={}ms mean={} std={}", System.currentTimeMillis() - t, mean, std));
-            t = System.currentTimeMillis();
-          } catch (InterruptedException e) {
-            e.printStackTrace();
-            break;
-          } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("Continue.");
+        try {
+          final List<Callable<SearchResult>> callables = new ArrayList<>();
+          for (int i = 0; i < samplesPerQuerySize; ++i) {
+            callables.add(search(queryLength, entrezIds, dataSet));
           }
+
+          double[] statistics = new double[samplesPerQuerySize];
+
+          List<Future<SearchResult>> futures = executor.invokeAll(callables);
+          for (int i = 0; i < futures.size(); ++i) {
+            SearchResult s = futures.get(i).get();
+            statistics[i] = s.getLogPvalue();
+          }
+
+          double mean = StatUtils.mean(statistics);
+          double std = Math.sqrt(StatUtils.variance(statistics, mean));
+          if (withPvalues) {
+            String strPvalues = Arrays.stream(statistics)
+              .mapToObj(String::valueOf)
+              .collect(Collectors.joining(","));
+            writer.write(String.format("%d\t%d\t%d\t%d\t%.16f\t%.16f\t%s\n",
+              queryLength, samplesPerQuerySize, freqFrom, freqTo, mean, std, strPvalues));
+          } else {
+            writer.write(String.format("%d\t%d\t%d\t%d\t%.16f\t%.16f\n",
+              queryLength, samplesPerQuerySize, freqFrom, freqTo, mean, std));
+          }
+          writer.flush();
+
+          System.out.println(StringUtils.fmt("Done: time={}ms mean={} std={}", System.currentTimeMillis() - t, mean, std));
+          t = System.currentTimeMillis();
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+          break;
+        } catch (Exception e) {
+          e.printStackTrace();
+          System.err.println("Continue.");
         }
       }
     }
-    executor.shutdownNow();
+    System.out.println();
   }
 
   @Override
@@ -132,7 +162,7 @@ public class BootstrapByRequestLengthCommand extends BaseCommand {
         .hasArgs(1)
         .isRequired(true)
         .withDescription("Path to partition file.")
-        .create("p")
+        .create(BootstrapOptions.PARTITION)
     );
 
     options.addOption(
@@ -141,18 +171,18 @@ public class BootstrapByRequestLengthCommand extends BaseCommand {
         .hasArg(false)
         .isRequired(false)
         .withDescription("Print p-values to output.")
-        .create("wpv")
+        .create(BootstrapOptions.WITH_P_VALUES)
     );
 
     options.addOption(
       OptionBuilder
         .withLongOpt("freq-bounds")
-        .withArgName("low,high")
-        .hasArgs(2)
+        .withArgName("bound_1,...,bound_n")
+        .hasArgs()
         .withValueSeparator(',')
         .isRequired(false)
         .withDescription("Use only genes which frequency lay in [low, high]. Must be comma-separated.")
-        .create("b")
+        .create(BootstrapOptions.FREQUENCY_BOUNDS)
     );
 
     return options;

@@ -52,7 +52,7 @@ public abstract class BaseCommand implements Command {
         .hasArgs(1)
         .isRequired(false)
         .withDescription("Allowed thread count.")
-        .create("t")
+        .create(BootstrapOptions.THREADS)
     );
     options.addOption(
       OptionBuilder
@@ -61,7 +61,7 @@ public abstract class BaseCommand implements Command {
         .hasArgs(1)
         .isRequired(true)
         .withDescription("Species.")
-        .create("s")
+        .create(BootstrapOptions.SPECIES)
     );
     options.addOption(
       OptionBuilder
@@ -70,7 +70,7 @@ public abstract class BaseCommand implements Command {
         .hasArgs(1)
         .isRequired(true)
         .withDescription("Path to folder with files for the species: <species>.modules.gmt, <species>.entrez.txt, <species>.freq.entrez.txt.")
-        .create("dp")
+        .create(BootstrapOptions.DATA_PATH)
     );
     options.addOption(
       OptionBuilder
@@ -79,7 +79,7 @@ public abstract class BaseCommand implements Command {
         .hasArgs(1)
         .isRequired(true)
         .withDescription("Output file name.")
-        .create("o")
+        .create(BootstrapOptions.OUTPUT_FILE)
     );
     options.addOption(
       OptionBuilder
@@ -89,7 +89,7 @@ public abstract class BaseCommand implements Command {
         .withValueSeparator(',')
         .isRequired(true)
         .withDescription("Fit parameters.")
-        .create("f")
+        .create(BootstrapOptions.FIT)
     );
 
     return options;
@@ -101,23 +101,23 @@ public abstract class BaseCommand implements Command {
   }
 
   protected int getThreadCount(CommandLine commandLine) {
-    return Integer.parseInt(commandLine.getOptionValue("t", "4"));
+    return Integer.parseInt(commandLine.getOptionValue(BootstrapOptions.THREADS, "4"));
   }
 
   protected int[] getFits(CommandLine commandLine) {
-    return Arrays.stream(commandLine.getOptionValues("f")).mapToInt(Integer::parseInt).toArray();
+    return Arrays.stream(commandLine.getOptionValues(BootstrapOptions.FIT)).mapToInt(Integer::parseInt).toArray();
   }
 
   protected Species getSpecies(CommandLine commandLine) {
-    return Species.fromString(commandLine.getOptionValue("s"));
+    return Species.fromString(commandLine.getOptionValue(BootstrapOptions.SPECIES));
   }
 
   protected String getPathToData(CommandLine commandLine) {
-    return commandLine.getOptionValue("dp");
+    return commandLine.getOptionValue(BootstrapOptions.DATA_PATH);
   }
 
   protected String getOutFileName(CommandLine commandLine) {
-    return commandLine.getOptionValue("o");
+    return commandLine.getOptionValue(BootstrapOptions.OUTPUT_FILE);
   }
 
   protected Options getCustomOptions() {
