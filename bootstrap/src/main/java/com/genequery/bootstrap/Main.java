@@ -149,69 +149,69 @@ public class Main {
   }
 
   private static void byQuerySizeBootstrap() throws IOException {
-    String outputFilename = BootstrapProperties.getOutputPath();
-    boolean withPvalues = BootstrapProperties.getWithPvalues();
-    int[] samplesPerQuerySizes = BootstrapProperties.getSamplesPerQuerySizes();
-    int threadCount = BootstrapProperties.getThreadCount();
-
-    DataSet dataSet = Utils.readDataSet();
-    int[] partition = Utils.getPartition(DEFAULT_REQUEST_LENGTHS);
-    List<Long> entrezIds = Utils.getEntrezIDs();
-    if (entrezIds.isEmpty()) {
-      throw new IllegalArgumentException("Result entrez ID list is empty.");
-    }
-
-    ExecutorService executor = Executors.newFixedThreadPool(threadCount);
-
-    try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(outputFilename))) {
-      long t = System.currentTimeMillis();
-      for (int requestLength : partition) {
-        for (int samplesPerQuerySize : samplesPerQuerySizes) {
-          System.out.print(
-            StringUtils.fmt("Running for {} request length and {} sample fit...", requestLength, samplesPerQuerySize));
-          System.out.flush();
-
-          try {
-            final List<Callable<Statistic>> callables = new ArrayList<>();
-            for (int i = 0; i < samplesPerQuerySize; ++i) {
-              callables.add(search(requestLength, entrezIds, dataSet));
-            }
-
-            double[] statistics = new double[samplesPerQuerySize];
-
-            List<Future<Statistic>> futures = executor.invokeAll(callables);
-            for (int i = 0; i < futures.size(); ++i) {
-              Statistic s = futures.get(i).get();
-              statistics[i] = s.logMinPvalue;
-            }
-
-            double mean = StatUtils.mean(statistics);
-            double std = Math.sqrt(StatUtils.variance(statistics, mean));
-            if (withPvalues) {
-              String strPvalues = Arrays.stream(statistics)
-                .mapToObj(String::valueOf)
-                .collect(Collectors.joining(","));
-              writer.write(String.format("%d\t%d\t%.16f\t%.16f\t%s\n",
-                requestLength, samplesPerQuerySize, mean, std, strPvalues));
-            } else {
-              writer.write(String.format("%d\t%d\t%.16f\t%.16f\n",
-                requestLength, samplesPerQuerySize, mean, std));
-            }
-            writer.flush();
-
-            System.out.println(StringUtils.fmt("Done: time={}ms mean={} std={}", System.currentTimeMillis() - t, mean, std));
-            t = System.currentTimeMillis();
-          } catch (InterruptedException e) {
-            e.printStackTrace();
-            break;
-          } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("Continue.");
-          }
-        }
-      }
-    }
-    executor.shutdownNow();
+//    String outputFilename = BootstrapProperties.getOutputPath();
+//    boolean withPvalues = BootstrapProperties.getWithPvalues();
+//    int[] samplesPerQuerySizes = BootstrapProperties.getSamplesPerQuerySizes();
+//    int threadCount = BootstrapProperties.getThreadCount();
+//
+//    DataSet dataSet = Utils.readDataSet();
+//    int[] partition = Utils.getPartition(DEFAULT_REQUEST_LENGTHS);
+//    List<Long> entrezIds = Utils.getEntrezIDs();
+//    if (entrezIds.isEmpty()) {
+//      throw new IllegalArgumentException("Result entrez ID list is empty.");
+//    }
+//
+//    ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+//
+//    try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(outputFilename))) {
+//      long t = System.currentTimeMillis();
+//      for (int requestLength : partition) {
+//        for (int samplesPerQuerySize : samplesPerQuerySizes) {
+//          System.out.print(
+//            StringUtils.fmt("Running for {} request length and {} sample fit...", requestLength, samplesPerQuerySize));
+//          System.out.flush();
+//
+//          try {
+//            final List<Callable<Statistic>> callables = new ArrayList<>();
+//            for (int i = 0; i < samplesPerQuerySize; ++i) {
+//              callables.add(search(requestLength, entrezIds, dataSet));
+//            }
+//
+//            double[] statistics = new double[samplesPerQuerySize];
+//
+//            List<Future<Statistic>> futures = executor.invokeAll(callables);
+//            for (int i = 0; i < futures.size(); ++i) {
+//              Statistic s = futures.get(i).get();
+//              statistics[i] = s.logMinPvalue;
+//            }
+//
+//            double mean = StatUtils.mean(statistics);
+//            double std = Math.sqrt(StatUtils.variance(statistics, mean));
+//            if (withPvalues) {
+//              String strPvalues = Arrays.stream(statistics)
+//                .mapToObj(String::valueOf)
+//                .collect(Collectors.joining(","));
+//              writer.write(String.format("%d\t%d\t%.16f\t%.16f\t%s\n",
+//                requestLength, samplesPerQuerySize, mean, std, strPvalues));
+//            } else {
+//              writer.write(String.format("%d\t%d\t%.16f\t%.16f\n",
+//                requestLength, samplesPerQuerySize, mean, std));
+//            }
+//            writer.flush();
+//
+//            System.out.println(StringUtils.fmt("Done: time={}ms mean={} std={}", System.currentTimeMillis() - t, mean, std));
+//            t = System.currentTimeMillis();
+//          } catch (InterruptedException e) {
+//            e.printStackTrace();
+//            break;
+//          } catch (Exception e) {
+//            e.printStackTrace();
+//            System.err.println("Continue.");
+//          }
+//        }
+//      }
+//    }
+//    executor.shutdownNow();
   }
 
 
