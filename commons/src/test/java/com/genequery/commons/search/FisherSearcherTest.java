@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
 
@@ -36,7 +37,9 @@ public class FisherSearcherTest {
   public void sanityTest() throws IOException {
     String requestLine = new String(Files.readAllBytes(Paths.get(resourcePath + "request.txt")));
     long[] query = StringUtils.parseEntrezGenes(requestLine, " ");
-    List<SearchResult> results = FisherSearcher.search(mmDataSet, query, 0.01);
+    Properties context = new Properties();
+    // TODO separate test for context
+    List<SearchResult> results = FisherSearcher.search(mmDataSet, query, 0.01, context);
     Collections.sort(results);
 
     assertEquals(4, results.size());

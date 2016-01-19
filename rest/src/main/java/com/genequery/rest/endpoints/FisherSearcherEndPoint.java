@@ -17,6 +17,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 @Path("/fisher")
@@ -55,13 +56,17 @@ public class FisherSearcherEndPoint {
       }
     }
 
+    Properties context = new Properties();
+    context.put(FisherSearcher.USE_TRUE_GSE_SIZE, true);
+
     List<SearchResult> results;
     long startTime = System.currentTimeMillis();
 
     results = FisherSearcher.search(
-        DataSetHolder.getDataSet(sp),
-        query,
-        ServerProperties.maxEmpiricalPvalue()
+      DataSetHolder.getDataSet(sp),
+      query,
+      ServerProperties.maxEmpiricalPvalue(),
+      context
     );
     Collections.sort(results);
 

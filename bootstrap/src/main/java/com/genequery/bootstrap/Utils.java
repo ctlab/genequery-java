@@ -22,18 +22,6 @@ import static com.genequery.commons.utils.Utils.checkNotNull;
  * Created by Arbuzov Ivan.
  */
 public class Utils {
-  @NotNull
-  public static DataSet readDataSet() throws IOException {
-    System.out.println("Initializing data...");
-    Species species = BootstrapProperties.getSpecies();
-    String gmtFilename = checkNotNull(BootstrapProperties.getGmtModulesFilename(), "Path to GMT is null");
-    ModulesDAO dao = new ModulesGmtDAO(species, Paths.get(gmtFilename));
-    DataSet dataSet = new DataSet(species, dao.getAllModules());
-    System.out.println(StringUtils.fmt(
-      "Data has been initialized: species={}, modules={}.", species, dataSet.getModules().size()
-    ));
-    return dataSet;
-  }
 
   @NotNull
   public static DataSet readDataSet(Species species, String pathToData) throws IOException {
@@ -47,32 +35,10 @@ public class Utils {
     return dataSet;
   }
 
-  public static GeneFrequencyDAO getGeneFrequencyDAO() throws IOException {
-    String freqToEntrezPath = checkNotNull(BootstrapProperties.getFreqToGenePath(),
-      "Path to gene frequency file is null");
-    return new GeneFrequencyFileDAO(Paths.get(freqToEntrezPath), "\t");
-  }
-
   public static GeneFrequencyDAO readGeneFrequency(Species species, String pathToData) throws IOException {
     Path pathToFreq = Paths.get(pathToData, StringUtils.fmt("{}.freq.entrez.txt", species.getText()));
     System.out.println("Initializing frequency DAO from " + pathToFreq);
     return new GeneFrequencyFileDAO(pathToFreq, "\t");
-  }
-
-  @NotNull
-  public static int[] getPartition(int[] default_partition) throws IOException {
-    String partitionFilename = BootstrapProperties.getRequestLengthsPartitionPath();
-    int[] partition;
-    if (partitionFilename != null) {
-      partition = Files.lines(Paths.get(partitionFilename)).mapToInt(Integer::parseInt).toArray();
-    } else {
-      System.out.println("Use default request lengths partition.");
-      partition = default_partition;
-    }
-    System.out.println(
-      StringUtils.fmt("Request partition length: {}, {}", partition.length, Arrays.toString(partition))
-    );
-    return partition;
   }
 
   @NotNull
@@ -84,36 +50,6 @@ public class Utils {
       StringUtils.fmt("Request partition length: {}, {}", partition.length, Arrays.toString(partition))
     );
     return partition;
-  }
-
-  @NotNull
-  public static List<Long> getEntrezIDs() throws IOException {
-    int[] stratBounds = BootstrapProperties.getStratBounds();
-    if (stratBounds != null) {
-      int leftBound = stratBounds[0];
-      int rightBound = stratBounds[1];
-      if (leftBound > rightBound) {
-        throw new RuntimeException("Bad strat bounds: " + leftBound + ":" + rightBound);
-      }
-      GeneFrequencyDAO dao = getGeneFrequencyDAO();
-      Map<Long, Integer> freqs = dao.entrezId2Frequency();
-
-      List<Long> finalEntrezIds = new ArrayList<>();
-      for (Long g : dao.getGenesSortedByFreq()) {
-        int f = freqs.get(g);
-        if (leftBound <= f && f <= rightBound) {
-          finalEntrezIds.add(g);
-        }
-      }
-      System.out.println(StringUtils.fmt("Use {} entrez IDs with frequency in [{}, {}]",
-        finalEntrezIds.size(), leftBound, rightBound));
-      return finalEntrezIds;
-    } else {
-      String entrezIdsFilename = checkNotNull(BootstrapProperties.getEntrezIdsFilename(), "Path to entrezIDs is null");
-      List<Long> entrezIds = Files.lines(Paths.get(entrezIdsFilename)).map(Long::parseLong).collect(Collectors.toList());
-      System.out.println("EntrezID total count: " + entrezIds.size());
-      return entrezIds;
-    }
   }
 
   @NotNull

@@ -1,5 +1,6 @@
 package com.genequery.bootstrap.commands;
 
+import com.genequery.bootstrap.BootstrapOptions;
 import com.genequery.bootstrap.Utils;
 import com.genequery.commons.dao.GeneFrequencyDAO;
 import com.genequery.commons.models.DataSet;
@@ -30,15 +31,17 @@ public class BootstrapByRequestLengthCommand extends BaseCommand {
 
   private Random random = new Random();
 
-  private Callable<SearchResult> search(int requestLength,
-                                            List<Long> entrezIds,
-                                            DataSet dataSet) {
+  private Callable<List<SearchResult>> search(int requestLength,
+                                              List<Long> entrezIds,
+                                              DataSet dataSet,
+                                              int firstN,
+                                              Properties context) {
     return () -> {
       while (true) {
         long[] query = Utils.randomList(requestLength, entrezIds, random);
-        Collection<SearchResult> results = FisherSearcher.searchPvalue(dataSet, query);
+        Collection<SearchResult> results = FisherSearcher.searchPvalue(dataSet, query, context);
         if (results.isEmpty()) continue;
-        return Collections.min(results);
+        return results.stream().sorted().limit(firstN).collect(Collectors.toList());
       }
     };
   }
@@ -49,6 +52,7 @@ public class BootstrapByRequestLengthCommand extends BaseCommand {
     boolean withPvalues = commandLine.hasOption(BootstrapOptions.WITH_P_VALUES);
     int[] samplesPerQuerySizes = getFits(commandLine);
     int threadCount = getThreadCount(commandLine);
+    System.out.println("Run on " + threadCount + " threads.");
 
     Species species = getSpecies(commandLine);
     String pathToData = getPathToData(commandLine);
@@ -68,22 +72,31 @@ public class BootstrapByRequestLengthCommand extends BaseCommand {
 
     Path outputPath = Paths.get(outputFilename);
     System.out.println("Output path " + outputPath);
+
+    int firstN = getFirstN(commandLine);
+    System.out.println("Use first " + firstN + " modules for p-value statistic.");
+
+    boolean useTrueGseSize = useTrueGseSize(commandLine);
+    System.out.println("Use " + (useTrueGseSize ? "true GSE size" : "6k") + " as gse size in Fisher exact test.");
+
     ExecutorService executor = Executors.newFixedThreadPool(threadCount);
     try (BufferedWriter writer = Files.newBufferedWriter(outputPath)) {
       if (withPvalues) {
-        writer.write("querySize\tfit\tfreqFrom\tfreqTo\tmean\tstd\tminLogPvalues\n");
+        writer.write("querySize\tfit\tfreqFrom\tfreqTo\tmeanLogPv\tstdLogPv\tmeanInters\tstdInters\tlogPvalues\n");
       } else {
-        writer.write("querySize\tfit\tfreqFrom\tfreqTo\tmean\tstd\n");
+        writer.write("querySize\tfit\tfreqFrom\tfreqTo\tmeanLogPv\tstdLogPv\tmeanInters\tstdInters\n");
       }
       if (freqBounds == null) {
         entrezIds = Utils.readEntrezIDs(species, pathToData);
-        runBootstrapInParallel(withPvalues, samplesPerQuerySizes, dataSet, partition, entrezIds, 1, 100000, executor, writer);
+        runBootstrapInParallel(withPvalues, samplesPerQuerySizes, dataSet, partition, entrezIds, 1, 100000, firstN,
+          useTrueGseSize, executor, writer);
       } else {
         for (int i = 0; i < freqBounds.length - 1; i++) {
           int freqFrom = freqBounds[i];
           int freqTo = freqBounds[i + 1];
           entrezIds = Utils.readEntrezIDsBounded(freqFrom, freqTo, geneFrequencyDAO);
-          runBootstrapInParallel(withPvalues, samplesPerQuerySizes, dataSet, partition, entrezIds, freqFrom, freqTo, executor, writer);
+          runBootstrapInParallel(withPvalues, samplesPerQuerySizes, dataSet, partition, entrezIds, freqFrom, freqTo,
+            firstN, useTrueGseSize, executor, writer);
         }
       }
     } finally {
@@ -97,11 +110,16 @@ public class BootstrapByRequestLengthCommand extends BaseCommand {
                                       int[] partition,
                                       List<Long> entrezIds,
                                       int freqFrom, int freqTo,
+                                      int firstN, boolean useTrueGseSize,
                                       ExecutorService executor,
                                       BufferedWriter writer) {
     if (entrezIds.isEmpty()) {
       throw new IllegalArgumentException("Result entrez ID list is empty.");
     }
+
+    Properties context = new Properties();
+    context.put(FisherSearcher.USE_TRUE_GSE_SIZE, useTrueGseSize);
+
     for (int queryLength : partition) {
       long t = System.currentTimeMillis();
       for (int samplesPerQuerySize : samplesPerQuerySizes) {
@@ -110,34 +128,49 @@ public class BootstrapByRequestLengthCommand extends BaseCommand {
         System.out.flush();
 
         try {
-          final List<Callable<SearchResult>> callables = new ArrayList<>();
+          final List<Callable<List<SearchResult>>> callables = new ArrayList<>();
           for (int i = 0; i < samplesPerQuerySize; ++i) {
-            callables.add(search(queryLength, entrezIds, dataSet));
+            callables.add(search(queryLength, entrezIds, dataSet, firstN, context));
           }
 
-          double[] statistics = new double[samplesPerQuerySize];
+          List<Double> logPvalueStat = new ArrayList<>();
+          List<Integer> intersectionSizeStat = new ArrayList<>();
 
-          List<Future<SearchResult>> futures = executor.invokeAll(callables);
-          for (int i = 0; i < futures.size(); ++i) {
-            SearchResult s = futures.get(i).get();
-            statistics[i] = s.getLogPvalue();
+          List<Future<List<SearchResult>>> futures = executor.invokeAll(callables);
+          for (Future<List<SearchResult>> future : futures) {
+            List<SearchResult> searchResults = future.get();
+            for (SearchResult s : searchResults) {
+              logPvalueStat.add(s.getLogPvalue());
+              intersectionSizeStat.add(s.getIntersectionSize());
+            }
           }
 
-          double mean = StatUtils.mean(statistics);
-          double std = Math.sqrt(StatUtils.variance(statistics, mean));
+          double[] logPvalueStatArr = new double[logPvalueStat.size()];
+          double[] intersectionSizeStatArr = new double[intersectionSizeStat.size()];
+
+          for (int i = 0; i < logPvalueStat.size(); i++) {
+            logPvalueStatArr[i] = logPvalueStat.get(i);
+            intersectionSizeStatArr[i] = intersectionSizeStat.get(i);
+          }
+          double meanLogPv = StatUtils.mean(logPvalueStatArr);
+          double stdLogPv = Math.sqrt(StatUtils.variance(logPvalueStatArr, meanLogPv));
+          double meanInters = StatUtils.mean(intersectionSizeStatArr);
+          double stdInters = Math.sqrt(StatUtils.variance(intersectionSizeStatArr, meanInters));
+
+
           if (withPvalues) {
-            String strPvalues = Arrays.stream(statistics)
-              .mapToObj(String::valueOf)
+            String strPvalues = logPvalueStat.stream()
+              .map(String::valueOf)
               .collect(Collectors.joining(","));
-            writer.write(String.format("%d\t%d\t%d\t%d\t%.16f\t%.16f\t%s\n",
-              queryLength, samplesPerQuerySize, freqFrom, freqTo, mean, std, strPvalues));
+            writer.write(String.format("%d\t%d\t%d\t%d\t%.16f\t%.16f\t%.16f\t%.16f\t%s\n",
+              queryLength, samplesPerQuerySize, freqFrom, freqTo, meanLogPv, stdLogPv, meanInters, stdInters, strPvalues));
           } else {
-            writer.write(String.format("%d\t%d\t%d\t%d\t%.16f\t%.16f\n",
-              queryLength, samplesPerQuerySize, freqFrom, freqTo, mean, std));
+            writer.write(String.format("%d\t%d\t%d\t%d\t%.16f\t%.16f\t%.16f\t%.16f\n",
+              queryLength, samplesPerQuerySize, freqFrom, freqTo, meanLogPv, meanInters, stdInters, stdLogPv));
           }
           writer.flush();
 
-          System.out.println(StringUtils.fmt("Done: time={}ms mean={} std={}", System.currentTimeMillis() - t, mean, std));
+          System.out.println(StringUtils.fmt("Done: time={}ms meanLogPv={} stdLogPv={}", System.currentTimeMillis() - t, meanLogPv, stdLogPv));
           t = System.currentTimeMillis();
         } catch (InterruptedException e) {
           e.printStackTrace();
@@ -149,42 +182,5 @@ public class BootstrapByRequestLengthCommand extends BaseCommand {
       }
     }
     System.out.println();
-  }
-
-  @Override
-  protected Options getCustomOptions() {
-    Options options = new Options();
-
-    options.addOption(
-      OptionBuilder
-        .withArgName("PATH")
-        .withLongOpt("partition")
-        .hasArgs(1)
-        .isRequired(true)
-        .withDescription("Path to partition file.")
-        .create(BootstrapOptions.PARTITION)
-    );
-
-    options.addOption(
-      OptionBuilder
-        .withLongOpt("with-p-values")
-        .hasArg(false)
-        .isRequired(false)
-        .withDescription("Print p-values to output.")
-        .create(BootstrapOptions.WITH_P_VALUES)
-    );
-
-    options.addOption(
-      OptionBuilder
-        .withLongOpt("freq-bounds")
-        .withArgName("bound_1,...,bound_n")
-        .hasArgs()
-        .withValueSeparator(',')
-        .isRequired(false)
-        .withDescription("Use only genes which frequency lay in [low, high]. Must be comma-separated.")
-        .create(BootstrapOptions.FREQUENCY_BOUNDS)
-    );
-
-    return options;
   }
 }

@@ -1,0 +1,2 @@
+#!/bin/bash
+scp bootstrap/target/bootstrap.jar iarbuzov@poni:/ceph/home/iarbuzov/bootstrap/bootstrap.jar

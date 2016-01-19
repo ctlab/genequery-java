@@ -1,5 +1,6 @@
 package com.genequery.bootstrap.commands;
 
+import com.genequery.bootstrap.BootstrapOptions;
 import com.genequery.commons.models.Species;
 import org.apache.commons.cli.*;
 
@@ -45,24 +46,7 @@ public abstract class BaseCommand implements Command {
     Options options = getCustomOptions();
 
     options.addOption("h", "help", false, "Show help.");
-    options.addOption(
-      OptionBuilder
-        .withLongOpt("threads")
-        .withArgName("NUM")
-        .hasArgs(1)
-        .isRequired(false)
-        .withDescription("Allowed thread count.")
-        .create(BootstrapOptions.THREADS)
-    );
-    options.addOption(
-      OptionBuilder
-        .withLongOpt("species")
-        .withArgName("mm or hs [or rt in future]")
-        .hasArgs(1)
-        .isRequired(true)
-        .withDescription("Species.")
-        .create(BootstrapOptions.SPECIES)
-    );
+    options.addOption(BootstrapOptions.species);
     options.addOption(
       OptionBuilder
         .withArgName("PATH")
@@ -75,7 +59,7 @@ public abstract class BaseCommand implements Command {
     options.addOption(
       OptionBuilder
         .withArgName("STRING")
-        .withLongOpt("--out-file-name")
+        .withLongOpt("out-file-name")
         .hasArgs(1)
         .isRequired(true)
         .withDescription("Output file name.")
@@ -91,6 +75,22 @@ public abstract class BaseCommand implements Command {
         .withDescription("Fit parameters.")
         .create(BootstrapOptions.FIT)
     );
+
+    options.addOption(
+      OptionBuilder
+        .withLongOpt("first-n-modules")
+        .withArgName("NUM")
+        .hasArg()
+        .isRequired(true)
+        .withDescription("Number of modules to be taken from the beginning (smallest p-value) for p-value.")
+        .create(BootstrapOptions.FIRST_N_MODULES)
+    );
+
+    options.addOption(BootstrapOptions.useTrueGseSize);
+    options.addOption(BootstrapOptions.threads);
+    options.addOption(BootstrapOptions.partition);
+    options.addOption(BootstrapOptions.withPvalues);
+    options.addOption(BootstrapOptions.freqBounds);
 
     return options;
   }
@@ -118,6 +118,14 @@ public abstract class BaseCommand implements Command {
 
   protected String getOutFileName(CommandLine commandLine) {
     return commandLine.getOptionValue(BootstrapOptions.OUTPUT_FILE);
+  }
+
+  protected int getFirstN(CommandLine commandLine) {
+    return Integer.parseInt(commandLine.getOptionValue(BootstrapOptions.FIRST_N_MODULES));
+  }
+
+  protected boolean useTrueGseSize(CommandLine commandLine) {
+    return commandLine.hasOption(BootstrapOptions.TRUE_GSE_SIZE);
   }
 
   protected Options getCustomOptions() {

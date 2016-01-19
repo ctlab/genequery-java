@@ -8,6 +8,7 @@ import com.genequery.commons.models.Module;
 import com.genequery.commons.models.Species;
 import gnu.trove.map.hash.TObjectIntHashMap;
 
+import javax.naming.Context;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -16,6 +17,8 @@ import java.util.stream.Collectors;
  */
 public class FisherSearcher {
 
+  public static String USE_TRUE_GSE_SIZE = "use.true.gse.size";
+
   /**
    * TODO
    * @param dataSet
@@ -23,8 +26,9 @@ public class FisherSearcher {
    * @param empPvalueThreshold
    * @return
    */
-  public static List<SearchResult> search(DataSet dataSet, long[] query, double empPvalueThreshold) {
-    List<SearchResult> result = searchPvalue(dataSet, Arrays.copyOf(query, query.length));
+  public static List<SearchResult> search(DataSet dataSet, long[] query, double empPvalueThreshold,
+                                          Properties context) {
+    List<SearchResult> result = searchPvalue(dataSet, Arrays.copyOf(query, query.length), context);
     return result.stream()
         .map(searchResult -> {
           searchResult.setEmpiricalPvalue(
@@ -42,7 +46,7 @@ public class FisherSearcher {
    * @param query
    * @return
    */
-  public static List<SearchResult> searchPvalue(DataSet dataSet, long[] query) {
+  public static List<SearchResult> searchPvalue(DataSet dataSet, long[] query, Properties context) {
     Arrays.sort(query);
     Collection<Module> modules = dataSet.getModules();
     final TObjectIntHashMap<String> overlaps = new TObjectIntHashMap<>(modules.size());
@@ -51,12 +55,14 @@ public class FisherSearcher {
     populateOverlaps(modules, query, overlaps, overlapsWithGSE);
 
     final List<SearchResult> result = new ArrayList<>(overlaps.size());
+    final boolean useRealGseSize = (boolean)context.getOrDefault(USE_TRUE_GSE_SIZE, false);
     modules.forEach(module -> {
       int seriesOverlap = overlapsWithGSE.get(module.getName().getGseGpl());
+      int gseSize = useRealGseSize ? dataSet.getGseSize(module.getName().getGseGpl()) : 6000;
       int a = overlaps.get(module.getName().full());
       int b = module.getGenes().length - a;
       int c = seriesOverlap - a;
-      int d = 6000 - seriesOverlap - module.getGenes().length + a;
+      int d = gseSize - seriesOverlap - module.getGenes().length + a;
 
       if (a == 0) return;
 
