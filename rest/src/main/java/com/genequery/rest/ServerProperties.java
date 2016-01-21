@@ -56,6 +56,10 @@ public class ServerProperties {
     return getProperty("init.data.path", "");
   }
 
+  public static int dbVersion() {
+    return Integer.parseInt(getProperty("db.version", "0"));
+  }
+
   public static String[] initSourceOrder() {
     return getProperty("init.source.order", "db,gmt").split(",");
   }

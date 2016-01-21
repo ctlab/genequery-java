@@ -10,6 +10,9 @@ import java.util.List;
  * Created by Arbuzov Ivan.
  */
 public class DataSet {
+  public static int DB_2013 = 2013;
+  public static int DB_2015 = 2015;
+
   private final Species species;
   private final THashMap<String, Module> modules;
   private final TObjectIntHashMap<String> gse2size;

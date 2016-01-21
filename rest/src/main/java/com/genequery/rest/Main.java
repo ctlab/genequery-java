@@ -45,6 +45,7 @@ public class Main {
 
   private static void initDataFromDB() throws Exception {
     Class.forName("org.postgresql.Driver");
+    LOG.info("Using DB " + ServerProperties.dbName() + ", version " + ServerProperties.dbVersion());
     try (Connection connection = DriverManager.getConnection(
       "jdbc:postgresql:" + ServerProperties.dbName(),
       ServerProperties.dbUser(),

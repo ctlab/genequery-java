@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 public class FisherSearcher {
 
   public static String USE_TRUE_GSE_SIZE = "use.true.gse.size";
+  public static String DB_VERSION = "db.version";
 
   /**
    * TODO
@@ -29,10 +30,11 @@ public class FisherSearcher {
   public static List<SearchResult> search(DataSet dataSet, long[] query, double empPvalueThreshold,
                                           Properties context) {
     List<SearchResult> result = searchPvalue(dataSet, Arrays.copyOf(query, query.length), context);
+    final int dbVersion  = (int)context.getOrDefault(DB_VERSION, -1);
     return result.stream()
         .map(searchResult -> {
           searchResult.setEmpiricalPvalue(
-              calculateEmpiricalPvalue(dataSet.getSpecies(), query.length, searchResult.getLogPvalue())
+              calculateEmpiricalPvalue(dataSet.getSpecies(), query.length, searchResult.getLogPvalue(), dbVersion)
           );
           return searchResult;
         })
@@ -88,19 +90,40 @@ public class FisherSearcher {
     );
   }
 
-  private static double calculateEmpiricalPvalue(Species species, int moduleSize, double logPvalue) {
-    return Normal.cdf(logPvalue, getMean(species, moduleSize), getStd(species, moduleSize));
+  private static double calculateEmpiricalPvalue(Species species, int moduleSize, double logPvalue, int dbVersion) {
+    return Normal.cdf(logPvalue, getMean(species, moduleSize, dbVersion), getStd(species, moduleSize, dbVersion));
   }
 
-  private static double getStd(Species species, int moduleSize) {
-    if (species == Species.MOUSE) return 0.982519d + 0.000769d * moduleSize;
-    if (species == Species.HUMAN) return 1.027662d + 0.000939d * moduleSize;
-    throw new IllegalArgumentException("No empirical mean for species " + species);
+  private static double getStd(Species species, int moduleSize, int dbVersion) {
+    if (dbVersion == DataSet.DB_2013) {
+      switch (species) {
+        case HUMAN: return 1.128394343e-6 * moduleSize + 0.5539313336;
+        case MOUSE: return 2.505819324e-6 * moduleSize + 0.5472805136;
+      }
+    } else if (dbVersion == DataSet.DB_2015) {
+      switch (species) {
+        case HUMAN: return -4.909174514e-6 * moduleSize + 0.5612293253;
+        case MOUSE: return 9.370360256e-6 * moduleSize + 0.5418300854;
+        case RAT: return -1.667001492e-5 * moduleSize + 0.5512707705;
+      }
+    }
+    throw new IllegalArgumentException("No empirical std for species " + species + " and DB version " + dbVersion);
   }
 
-  private static double getMean(Species species, int moduleSize) {
-    if (species == Species.MOUSE) return -3.06942d - 0.01322d * moduleSize;
-    if (species == Species.HUMAN) return -2.2151d - 0.0187d * moduleSize;
-    throw new IllegalArgumentException("No empirical std for species " + species);
+
+  private static double getMean(Species species, int moduleSize, int dbVersion) {
+    if (dbVersion == DataSet.DB_2013) {
+      switch (species) {
+        case HUMAN: return -0.08455403386 * Math.log(moduleSize) - 4.269244644;
+        case MOUSE: return -0.0869592962 * Math.log(moduleSize) - 4.090598767;
+      }
+    } else if (dbVersion == DataSet.DB_2015) {
+      switch (species) {
+        case HUMAN: return -0.08347915069 * Math.log(moduleSize) - 4.443941868;
+        case MOUSE: return -0.08848028394 * Math.log(moduleSize) - 4.269100238;
+        case RAT: return -0.08350190746 * Math.log(moduleSize) - 3.568849077;
+      }
+    }
+    throw new IllegalArgumentException("No empirical mean for species " + species + " and DB version " + dbVersion);
   }
 }

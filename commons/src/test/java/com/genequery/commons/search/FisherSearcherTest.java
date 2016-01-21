@@ -38,20 +38,21 @@ public class FisherSearcherTest {
     String requestLine = new String(Files.readAllBytes(Paths.get(resourcePath + "request.txt")));
     long[] query = StringUtils.parseEntrezGenes(requestLine, " ");
     Properties context = new Properties();
+    context.put(FisherSearcher.DB_VERSION, 2013);
+    context.put(FisherSearcher.USE_TRUE_GSE_SIZE, true);
     // TODO separate test for context
     List<SearchResult> results = FisherSearcher.search(mmDataSet, query, 0.01, context);
     Collections.sort(results);
 
-    assertEquals(4, results.size());
-    assertEquals("GSE46356", results.get(0).getGse());
-    assertEquals("GSE23508", results.get(1).getGse());
+    assertEquals(2, results.size());
+    assertEquals("GSE4066", results.get(0).getGse());
+    assertEquals("GSE4066", results.get(1).getGse());
 
-    SearchResult GSE4066 = results.get(2);
-    assertEquals("GSE4066", GSE4066.getGse());
-    assertEquals(18, GSE4066.getModuleNumber());
-    assertEquals(19, GSE4066.getIntersectionSize());
-    assertEquals(55, GSE4066.getModuleSize());
-    assertEquals(-157.22d, GSE4066.getLogEmpiricalPvalue(), 0.01);
+    SearchResult GSE4066 = results.get(1);
+    assertEquals(4, GSE4066.getModuleNumber());
+    assertEquals(155, GSE4066.getIntersectionSize());
+    assertEquals(654, GSE4066.getModuleSize());
+    assertEquals(Double.NEGATIVE_INFINITY, GSE4066.getLogEmpiricalPvalue(), 0.01);
   }
 
 }

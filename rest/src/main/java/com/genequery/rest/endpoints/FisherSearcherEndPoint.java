@@ -58,6 +58,7 @@ public class FisherSearcherEndPoint {
 
     Properties context = new Properties();
     context.put(FisherSearcher.USE_TRUE_GSE_SIZE, true);
+    context.put(FisherSearcher.DB_VERSION, ServerProperties.dbVersion());
 
     List<SearchResult> results;
     long startTime = System.currentTimeMillis();
